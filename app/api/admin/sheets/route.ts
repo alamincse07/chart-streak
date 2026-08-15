@@ -8,7 +8,7 @@ export async function GET() {
 
   const { data, error: dbErr } = await supabaseAdmin
     .from('sheets')
-    .select('id, display_name, google_sheet_id, sheet_tab_name, last_synced_at')
+    .select('id, display_name, google_sheet_id, sheet_tab_name, sheet_type, last_synced_at')
     .order('display_name', { ascending: true });
 
   if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 });
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   const body = await req.json();
-  const { display_name, google_sheet_id, sheet_tab_name } = body;
+  const { display_name, google_sheet_id, sheet_tab_name, sheet_type } = body;
 
   if (!display_name || !google_sheet_id || !sheet_tab_name) {
     return NextResponse.json(
@@ -30,9 +30,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const resolvedType = sheet_type === 'notes' ? 'notes' : 'table';
+
   const { data, error: insertErr } = await supabaseAdmin
     .from('sheets')
-    .insert({ display_name, google_sheet_id, sheet_tab_name })
+    .insert({ display_name, google_sheet_id, sheet_tab_name, sheet_type: resolvedType })
     .select()
     .single();
 

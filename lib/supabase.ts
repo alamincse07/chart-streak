@@ -31,5 +31,6 @@ export type SheetRecord = {
   google_sheet_id: string;
   sheet_tab_name: string;
   display_name: string;
+  sheet_type: 'table' | 'notes';
   last_synced_at: string | null;
 };

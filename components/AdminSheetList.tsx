@@ -6,6 +6,7 @@ type AdminSheet = {
   display_name: string;
   google_sheet_id: string;
   sheet_tab_name: string;
+  sheet_type: 'table' | 'notes';
   last_synced_at: string | null;
 };
 
@@ -18,6 +19,7 @@ export function AdminSheetList() {
   const [displayName, setDisplayName] = useState('');
   const [sheetId, setSheetId] = useState('');
   const [tabName, setTabName] = useState('');
+  const [sheetType, setSheetType] = useState<'table' | 'notes'>('table');
   const [adding, setAdding] = useState(false);
 
   const load = async () => {
@@ -48,6 +50,7 @@ export function AdminSheetList() {
         display_name: displayName,
         google_sheet_id: sheetId,
         sheet_tab_name: tabName,
+        sheet_type: sheetType,
       }),
     });
     if (!res.ok) {
@@ -57,6 +60,7 @@ export function AdminSheetList() {
       setDisplayName('');
       setSheetId('');
       setTabName('');
+      setSheetType('table');
       await load();
     }
     setAdding(false);
@@ -101,6 +105,14 @@ export function AdminSheetList() {
             onChange={(e) => setTabName(e.target.value)}
             style={{ flex: '1 1 160px' }}
           />
+          <select
+            value={sheetType}
+            onChange={(e) => setSheetType(e.target.value as 'table' | 'notes')}
+            style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc' }}
+          >
+            <option value="table">Table (grid view)</option>
+            <option value="notes">Notes (long text / paragraphs)</option>
+          </select>
         </div>
         <button onClick={addSheet} disabled={adding}>
           {adding ? 'Adding…' : 'Add sheet'}
@@ -130,7 +142,8 @@ export function AdminSheetList() {
                 <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>
                   <div>{s.display_name}</div>
                   <div style={{ color: '#666', fontSize: 12 }}>
-                    {s.google_sheet_id} · {s.sheet_tab_name}
+                    {s.google_sheet_id} · {s.sheet_tab_name} ·{' '}
+                    <span style={{ textTransform: 'capitalize' }}>{s.sheet_type}</span>
                   </div>
                 </td>
                 <td style={{ padding: 8, borderBottom: '1px solid #eee' }}>
