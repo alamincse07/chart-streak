@@ -1,0 +1,58 @@
+Requirements Document
+
+Project Name: Secure Spreadsheet Viewer (SSV)
+
+1. Project Overview
+Purpose
+
+Develop a secure web application that displays data stored in Google Sheets while preventing direct access to the underlying spreadsheet and discouraging unauthorized sharing through dynamic per-user watermarking.
+
+The application must authenticate users using Google Sign-In, authorize access, render spreadsheet data in a spreadsheet-like interface, and display the authenticated user's email as a repeating transparent watermark across the page.
+
+2. Objectives
+Replace Google Sheet sharing with secure web access.
+Authenticate every user.
+Restrict access to authorized users only.
+Display viewer-specific watermark.
+Maintain audit logs.
+Prevent accidental data leakage.
+Support large spreadsheets.
+3. Technology Stack
+Frontend
+Next.js
+React
+TypeScript
+TailwindCSS
+AG Grid Community (preferred)
+or
+Handsontable Community
+or
+TanStack Table
+Backend
+Node.js
+Express.js
+
+or
+
+Next.js API Routes
+Authentication
+
+Google OAuth
+
+Login using Google Account only.
+
+Database
+
+Supabase PostgreSQL
+
+Stores:
+sheet data historically or fetch live data.
+
+Data Source:
+
+Google Sheets API
+
+The Google Sheet acts as the master database.
+
+Deployment
+Vercel
