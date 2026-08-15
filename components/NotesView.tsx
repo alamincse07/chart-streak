@@ -129,7 +129,7 @@ export function NotesView({ sheetId }: { sheetId: string }) {
               }}
             >
               {Object.entries(row).map(([field, value]) => (
-                <div key={field} style={{ marginBottom: 14, color:'#152b85e8' }}>
+                <div key={field} style={{ marginBottom: 14, color:'#000fffe8' }}>
                   <div style={{ fontSize: 12, color: '#888', marginBottom: 4, fontWeight: 600 }}>
                     {field}
                   </div>
