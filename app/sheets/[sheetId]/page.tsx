@@ -39,7 +39,7 @@ export default async function SheetPage({ params }: { params: { sheetId: string 
   }
 
   return (
-    <main style={{ padding: '2rem', position: 'relative' }}>
+    <main style={{ padding: '1rem', position: 'relative' }}>
       <h1 style={{ fontSize: 20, marginBottom: 16 }}>{sheet.display_name}</h1>
 
       {sheet.display_name === "Next Entry" && (

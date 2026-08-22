@@ -75,7 +75,7 @@ export default async function HomePage() {
     .order('display_name', { ascending: true });
 
   return (
-    <main style={{ padding: '0.75rem', position: 'relative' }}>
+    <main style={{ padding: '1rem', position: 'relative' }}>
       <section
         style={{
           background: '#f7f9fc',
