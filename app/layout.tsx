@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Providers } from '@/components/Providers';
 import { Header } from '@/components/Header';
+import { NoCopyWrapper } from '@/components/NoCopyWrapper';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -33,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Providers>
           <Header />
-          {children}
+          <NoCopyWrapper>{children}</NoCopyWrapper>
         </Providers>
       </body>
     </html>
