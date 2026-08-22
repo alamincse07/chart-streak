@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut, signIn } from 'next-auth/react';
+import { SheetsNavDropdown } from './SheetsNavDropdown';
 
 const NAVY = '#0f172a';
 const ACCENT = '#1d6fd6';
@@ -41,11 +42,7 @@ export function Header() {
         <Link href="/" style={{ fontWeight: 600, marginRight: 12, textDecoration: 'none', color: '#fff' }}>
           Chart Streak
         </Link>
-        {session && approvalStatus === 'approved' && (
-          <Link href="/" style={linkStyle('/')}>
-            Sheets
-          </Link>
-        )}
+        {session && approvalStatus === 'approved' && <SheetsNavDropdown />}
         {isAdmin && (
           <>
             <Link href="/admin" style={linkStyle('/admin')}>

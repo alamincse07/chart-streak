@@ -43,9 +43,9 @@ export default async function SheetPage({ params }: { params: { sheetId: string 
       <h1 style={{ fontSize: 20, marginBottom: 16 }}>{sheet.display_name}</h1>
 
       {sheet.display_name === "Next Entry" && (
-        <p>
+        
           <h5>এন্টি নেওয়ার জন্য আপনাকে সাজেস্ট করা হচ্ছে। মূলত পরবর্তী ট্রেডিং সেশনে আপনি এগুলোই দেখবেন।</h5>
-        </p>
+        
       )}
 
       {sheet.sheet_type === 'notes' ? (
