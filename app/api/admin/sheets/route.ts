@@ -34,7 +34,12 @@ export async function POST(req: NextRequest) {
 
   const { data, error: insertErr } = await supabaseAdmin
     .from('sheets')
-    .insert({ display_name, google_sheet_id, sheet_tab_name, sheet_type: resolvedType })
+    .insert({
+      display_name,
+      google_sheet_id,
+      sheet_tab_name,
+      sheet_type: resolvedType,
+    })
     .select()
     .single();
 

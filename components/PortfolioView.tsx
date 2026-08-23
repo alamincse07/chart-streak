@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
+import { RowDetailModal } from './RowDetailModal';
 
 type Holding = {
   stock_name: string;
@@ -24,6 +25,13 @@ type Transaction = {
   portfolio_transaction_comments: Comment[];
 };
 
+type SheetMatch = {
+  sheetId: string;
+  sheetName: string;
+  syncedAt: string | null;
+  row: Record<string, string | number | null>;
+};
+
 const TXN_PAGE_SIZE = 20;
 
 export function PortfolioView() {
@@ -33,6 +41,9 @@ export function PortfolioView() {
   const [txnTotalCount, setTxnTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [txnLoading, setTxnLoading] = useState(false);
+  const [sheetMatches, setSheetMatches] = useState<Record<string, SheetMatch[]>>({});
+  const [matchesLoading, setMatchesLoading] = useState(true);
+  const [activeMatch, setActiveMatch] = useState<SheetMatch | null>(null);
 
   const [stockName, setStockName] = useState('');
   const [txnType, setTxnType] = useState<'buy' | 'sell'>('buy');
@@ -57,8 +68,17 @@ export function PortfolioView() {
     setLoading(true);
     const holdingsRes = await fetch('/api/portfolio/holdings');
     if (holdingsRes.ok) setHoldings((await holdingsRes.json()).holdings);
-    await loadTransactions(1);
+    // Holdings are shown as soon as they're back — don't make the user
+    // wait on the slower cross-sheet match lookup below.
     setLoading(false);
+
+    loadTransactions(1);
+
+    fetch('/api/portfolio/holdings/matches')
+      .then((res) => (res.ok ? res.json() : { matches: {} }))
+      .then((json) => setSheetMatches(json.matches || {}))
+      .catch(() => {})
+      .finally(() => setMatchesLoading(false));
   }, [loadTransactions]);
 
   useEffect(() => {
@@ -143,7 +163,7 @@ export function PortfolioView() {
             style={{ width: 110 }}
           />
           <button type="submit" disabled={submitting}>
-            {submitting ? 'Saving…' : 'Add'}
+            {submitting ? 'Saving…' : 'Save'}
           </button>
         </form>
         {errorMsg && <p style={{ color: 'crimson', fontSize: 13, marginTop: 8 }}>{errorMsg}</p>}
@@ -166,23 +186,53 @@ export function PortfolioView() {
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Quantity</th>
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Avg price</th>
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Total cost</th>
+                <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Trade references</th>
               </tr>
             </thead>
             <tbody>
-              {holdings.map((h) => (
-                <tr key={h.stock_name}>
-                  <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>{h.stock_name}</td>
-                  <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}>
-                    {h.quantity}
-                  </td>
-                  <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}>
-                    {h.avg_price.toFixed(2)}
-                  </td>
-                  <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}>
-                    {(h.quantity * h.avg_price).toFixed(2)}
-                  </td>
-                </tr>
-              ))}
+              {holdings.map((h) => {
+                const matches = sheetMatches[h.stock_name] || [];
+                return (
+                  <tr key={h.stock_name}>
+                    <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>{h.stock_name}</td>
+                    <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}>
+                      {h.quantity}
+                    </td>
+                    <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}>
+                      {h.avg_price.toFixed(2)}
+                    </td>
+                    <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}>
+                      {(h.quantity * h.avg_price).toFixed(2)}
+                    </td>
+                    <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>
+                      {matches.length === 0 ? (
+                        <span style={{ color: '#bbb', fontSize: 13 }}>
+                          {matchesLoading ? 'Checking…' : '—'}
+                        </span>
+                      ) : (
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {matches.map((m) => (
+                            <button
+                              key={m.sheetId}
+                              onClick={() => setActiveMatch(m)}
+                              style={{
+                                fontSize: 12,
+                                padding: '3px 8px',
+                                borderRadius: 999,
+                                border: '1px solid #cbd5e1',
+                                background: '#f7f9fc',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              From {m.sheetName}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -245,6 +295,14 @@ export function PortfolioView() {
           </div>
         )}
       </section>
+
+      {activeMatch && (
+        <RowDetailModal
+          row={{ ...activeMatch.row, _syncedAt: activeMatch.syncedAt }}
+          onClose={() => setActiveMatch(null)}
+          title={`${activeMatch.sheetName} — latest entry`}
+        />
+      )}
     </div>
   );
 }
