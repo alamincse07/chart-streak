@@ -1,11 +1,13 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { RowDetailModal } from './RowDetailModal';
+import { StockNameInput } from './StockNameInput';
 
 type Holding = {
   stock_name: string;
   quantity: number;
   avg_price: number;
+  note: string | null;
   updated_at: string;
 };
 
@@ -44,6 +46,8 @@ export function PortfolioView() {
   const [sheetMatches, setSheetMatches] = useState<Record<string, SheetMatch[]>>({});
   const [matchesLoading, setMatchesLoading] = useState(true);
   const [activeMatch, setActiveMatch] = useState<SheetMatch | null>(null);
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [savingNote, setSavingNote] = useState<string | null>(null);
 
   const [stockName, setStockName] = useState('');
   const [txnType, setTxnType] = useState<'buy' | 'sell'>('buy');
@@ -67,7 +71,13 @@ export function PortfolioView() {
   const load = useCallback(async () => {
     setLoading(true);
     const holdingsRes = await fetch('/api/portfolio/holdings');
-    if (holdingsRes.ok) setHoldings((await holdingsRes.json()).holdings);
+    if (holdingsRes.ok) {
+      const json = await holdingsRes.json();
+      setHoldings(json.holdings);
+      setNoteDrafts(
+        Object.fromEntries((json.holdings as Holding[]).map((h) => [h.stock_name, h.note || '']))
+      );
+    }
     // Holdings are shown as soon as they're back — don't make the user
     // wait on the slower cross-sheet match lookup below.
     setLoading(false);
@@ -80,6 +90,21 @@ export function PortfolioView() {
       .catch(() => {})
       .finally(() => setMatchesLoading(false));
   }, [loadTransactions]);
+
+  const saveNote = async (stockName: string) => {
+    setSavingNote(stockName);
+    const res = await fetch('/api/portfolio/holdings/note', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stock_name: stockName, note: noteDrafts[stockName] || '' }),
+    });
+    if (res.ok) {
+      setHoldings((prev) =>
+        prev.map((h) => (h.stock_name === stockName ? { ...h, note: noteDrafts[stockName] || null } : h))
+      );
+    }
+    setSavingNote(null);
+  };
 
   useEffect(() => {
     load();
@@ -129,13 +154,7 @@ export function PortfolioView() {
       >
         <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 12 }}>Add a trade</h2>
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <input
-            type="text"
-            placeholder="Stock name"
-            value={stockName}
-            onChange={(e) => setStockName(e.target.value)}
-            style={{ flex: '1 1 180px' }}
-          />
+          <StockNameInput value={stockName} onChange={setStockName} />
           <select
             value={txnType}
             onChange={(e) => setTxnType(e.target.value as 'buy' | 'sell')}
@@ -163,7 +182,7 @@ export function PortfolioView() {
             style={{ width: 110 }}
           />
           <button type="submit" disabled={submitting}>
-            {submitting ? 'Saving…' : 'Save'}
+            {submitting ? 'Saving…' : 'Add'}
           </button>
         </form>
         {errorMsg && <p style={{ color: 'crimson', fontSize: 13, marginTop: 8 }}>{errorMsg}</p>}
@@ -187,6 +206,7 @@ export function PortfolioView() {
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Avg price</th>
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Total cost</th>
                 <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Trade references</th>
+                <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Note</th>
               </tr>
             </thead>
             <tbody>
@@ -224,11 +244,39 @@ export function PortfolioView() {
                                 cursor: 'pointer',
                               }}
                             >
-                              From {m.sheetName}
+                              {m.sheetName}
                             </button>
                           ))}
                         </div>
                       )}
+                    </td>
+                    <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2', minWidth: 200 }}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                        <textarea
+                          value={noteDrafts[h.stock_name] ?? ''}
+                          onChange={(e) =>
+                            setNoteDrafts((prev) => ({ ...prev, [h.stock_name]: e.target.value }))
+                          }
+                          placeholder="Add a note. Ex: Trade type, %of entry etc "
+                          rows={2}
+                          style={{
+                            flex: 1,
+                            fontSize: 13,
+                            fontFamily: 'inherit',
+                            padding: '6px 8px',
+                            resize: 'vertical',
+                          }}
+                        />
+                        {(noteDrafts[h.stock_name] ?? '') !== (h.note ?? '') && (
+                          <button
+                            onClick={() => saveNote(h.stock_name)}
+                            disabled={savingNote === h.stock_name}
+                            style={{ fontSize: 12, padding: '4px 8px', whiteSpace: 'nowrap' }}
+                          >
+                            {savingNote === h.stock_name ? 'Saving…' : 'Save'}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

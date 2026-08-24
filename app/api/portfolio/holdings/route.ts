@@ -15,7 +15,7 @@ export async function GET() {
   const userId = (session.user as any).id;
   const { data, error } = await supabaseAdmin
     .from('portfolio_holdings')
-    .select('stock_name, quantity, avg_price, updated_at')
+    .select('stock_name, quantity, avg_price, note, updated_at')
     .eq('user_id', userId)
     .gt('quantity', 0)
     .order('stock_name', { ascending: true });
