@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 
 type UserSummary = {
   userId: string;
@@ -13,90 +14,64 @@ type Holding = {
   stock_name: string;
   quantity: number;
   avg_price: number;
+  note: string | null;
+  admin_note: string | null;
 };
 
-type Comment = {
-  id: string;
-  comment: string;
-  created_at: string;
-};
+function HoldingRow({
+  holding,
+  userId,
+  onSaved,
+}: {
+  holding: Holding;
+  userId: string;
+  onSaved: () => void;
+}) {
+  const [draft, setDraft] = useState(holding.admin_note || '');
+  const [saving, setSaving] = useState(false);
 
-type Transaction = {
-  id: string;
-  stock_name: string;
-  transaction_type: 'buy' | 'sell';
-  quantity: number;
-  price: number;
-  transaction_date: string;
-  portfolio_transaction_comments: Comment[];
-};
+  useEffect(() => {
+    setDraft(holding.admin_note || '');
+  }, [holding.admin_note]);
 
-const TXN_PAGE_SIZE = 20;
+  const dirty = draft !== (holding.admin_note || '');
 
-function TransactionRow({ txn, onCommented }: { txn: Transaction; onCommented: () => void }) {
-  const [commentText, setCommentText] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const submitComment = async () => {
-    if (!commentText.trim()) return;
-    setSubmitting(true);
-    const res = await fetch(`/api/admin/portfolios/transactions/${txn.id}/comments`, {
-      method: 'POST',
+  const save = async () => {
+    setSaving(true);
+    const res = await fetch('/api/admin/portfolios/holdings/note', {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ comment: commentText.trim() }),
+      body: JSON.stringify({ user_id: userId, stock_name: holding.stock_name, admin_note: draft }),
     });
-    if (res.ok) {
-      setCommentText('');
-      onCommented();
-    }
-    setSubmitting(false);
+    if (res.ok) onSaved();
+    setSaving(false);
   };
 
   return (
-    <div style={{ border: '1px solid #eee', borderRadius: 8, padding: '10px 14px', marginBottom: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14 }}>
-        <span>
-          <strong
-            style={{
-              color: txn.transaction_type === 'buy' ? '#0a5' : '#c0392b',
-              textTransform: 'uppercase',
-              fontSize: 12,
-              marginRight: 8,
-            }}
-          >
-            {txn.transaction_type}
-          </strong>
-          {txn.stock_name} · {txn.quantity} @ {Number(txn.price).toFixed(2)}
-        </span>
-        <span style={{ fontSize: 12, color: '#888' }}>
-          {new Date(txn.transaction_date).toLocaleString()}
-        </span>
-      </div>
-
-      {txn.portfolio_transaction_comments?.length > 0 && (
-        <div style={{ marginTop: 8, paddingLeft: 10, borderLeft: '2px solid #eee' }}>
-          {txn.portfolio_transaction_comments.map((c) => (
-            <div key={c.id} style={{ fontSize: 13, color: '#555', marginBottom: 4 }}>
-              {c.comment}
-            </div>
-          ))}
+    <tr>
+      <td style={{ padding: 6 }}>{holding.stock_name}</td>
+      <td style={{ padding: 6, textAlign: 'right' }}>{holding.quantity}</td>
+      <td style={{ padding: 6, textAlign: 'right' }}>{holding.avg_price.toFixed(2)}</td>
+      <td style={{ padding: 6, maxWidth: 200 }}>
+        {holding.note ? holding.note : <span style={{ color: '#bbb' }}>—</span>}
+      </td>
+      <td style={{ padding: 6, minWidth: 200 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Add an admin note…"
+            rows={2}
+            style={{ flex: 1, fontSize: 12, fontFamily: 'inherit', padding: '4px 6px', resize: 'vertical' }}
+          />
+          {dirty && (
+            <button onClick={save} disabled={saving} style={{ fontSize: 11, padding: '4px 8px', whiteSpace: 'nowrap' }}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          )}
         </div>
-      )}
-
-      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-        <input
-          type="text"
-          placeholder="Add a note on this trade…"
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submitComment()}
-          style={{ flex: 1, fontSize: 13 }}
-        />
-        <button onClick={submitComment} disabled={submitting || !commentText.trim()}>
-          {submitting ? 'Saving…' : 'Comment'}
-        </button>
-      </div>
-    </div>
+      </td>
+    </tr>
   );
 }
 
@@ -105,9 +80,6 @@ export function AdminPortfoliosView() {
   const [loading, setLoading] = useState(true);
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [txnPage, setTxnPage] = useState(1);
-  const [txnTotalCount, setTxnTotalCount] = useState(0);
   const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
@@ -117,15 +89,14 @@ export function AdminPortfoliosView() {
       .finally(() => setLoading(false));
   }, []);
 
-  const loadDetail = useCallback(async (userId: string, page: number = 1) => {
+  const loadDetail = useCallback(async (userId: string) => {
     setDetailLoading(true);
-    const res = await fetch(`/api/admin/portfolios/${userId}?page=${page}&pageSize=${TXN_PAGE_SIZE}`);
+    // pageSize=1 for transactions — this view only needs holdings; the
+    // full trade history lives on its own page now.
+    const res = await fetch(`/api/admin/portfolios/${userId}?page=1&pageSize=1`);
     if (res.ok) {
       const json = await res.json();
       setHoldings(json.holdings || []);
-      setTransactions(json.transactions || []);
-      setTxnTotalCount(json.transactionsTotalCount || 0);
-      setTxnPage(json.page || 1);
     }
     setDetailLoading(false);
   }, []);
@@ -136,7 +107,7 @@ export function AdminPortfoliosView() {
       return;
     }
     setExpandedUserId(userId);
-    loadDetail(userId, 1);
+    loadDetail(userId);
   };
 
   if (loading) return <p>Loading…</p>;
@@ -176,63 +147,36 @@ export function AdminPortfoliosView() {
                 <p>Loading…</p>
               ) : (
                 <>
-                  <h3 style={{ fontSize: 14, marginBottom: 8 }}>Holdings</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <h3 style={{ fontSize: 14, margin: 0 }}>Holdings</h3>
+                    <Link href={`/admin/portfolios/${u.userId}/trades`} style={{ fontSize: 13 }}>
+                      View trade history →
+                    </Link>
+                  </div>
                   {holdings.length === 0 ? (
                     <p style={{ color: '#666', fontSize: 13 }}>No holdings.</p>
                   ) : (
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 16 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                       <thead>
                         <tr>
                           <th style={{ textAlign: 'left', padding: 6 }}>Stock</th>
                           <th style={{ textAlign: 'right', padding: 6 }}>Quantity</th>
                           <th style={{ textAlign: 'right', padding: 6 }}>Avg price</th>
+                          <th style={{ textAlign: 'left', padding: 6 }}>User&apos;s note</th>
+                          <th style={{ textAlign: 'left', padding: 6 }}>Admin note</th>
                         </tr>
                       </thead>
                       <tbody>
                         {holdings.map((h) => (
-                          <tr key={h.stock_name}>
-                            <td style={{ padding: 6 }}>{h.stock_name}</td>
-                            <td style={{ padding: 6, textAlign: 'right' }}>{h.quantity}</td>
-                            <td style={{ padding: 6, textAlign: 'right' }}>{h.avg_price.toFixed(2)}</td>
-                          </tr>
+                          <HoldingRow
+                            key={h.stock_name}
+                            holding={h}
+                            userId={u.userId}
+                            onSaved={() => loadDetail(u.userId)}
+                          />
                         ))}
                       </tbody>
                     </table>
-                  )}
-
-                  <h3 style={{ fontSize: 14, marginBottom: 8 }}>Trades</h3>
-                  {transactions.length === 0 ? (
-                    <p style={{ color: '#666', fontSize: 13 }}>No trades.</p>
-                  ) : (
-                    <>
-                      {transactions.map((t) => (
-                        <TransactionRow
-                          key={t.id}
-                          txn={t}
-                          onCommented={() => loadDetail(u.userId, txnPage)}
-                        />
-                      ))}
-                      {txnTotalCount > TXN_PAGE_SIZE && (
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
-                          <button
-                            disabled={detailLoading || txnPage <= 1}
-                            onClick={() => loadDetail(u.userId, txnPage - 1)}
-                          >
-                            Previous
-                          </button>
-                          <span style={{ fontSize: 13 }}>
-                            Page {txnPage} of {Math.max(1, Math.ceil(txnTotalCount / TXN_PAGE_SIZE))} (
-                            {txnTotalCount} trades)
-                          </span>
-                          <button
-                            disabled={detailLoading || txnPage >= Math.ceil(txnTotalCount / TXN_PAGE_SIZE)}
-                            onClick={() => loadDetail(u.userId, txnPage + 1)}
-                          >
-                            Next
-                          </button>
-                        </div>
-                      )}
-                    </>
                   )}
                 </>
               )}

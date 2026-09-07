@@ -62,7 +62,7 @@ export function UserMenuDropdown() {
             whiteSpace: 'nowrap',
           }}
         >
-          {email}
+          {'Info'}
         </span>
         <span style={{ fontSize: 10 }}>{open ? '▲' : '▼'}</span>
       </button>

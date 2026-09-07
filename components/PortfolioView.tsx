@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { RowDetailModal } from './RowDetailModal';
 import { StockNameInput } from './StockNameInput';
 
@@ -8,23 +9,8 @@ type Holding = {
   quantity: number;
   avg_price: number;
   note: string | null;
+  admin_note: string | null;
   updated_at: string;
-};
-
-type Comment = {
-  id: string;
-  comment: string;
-  created_at: string;
-};
-
-type Transaction = {
-  id: string;
-  stock_name: string;
-  transaction_type: 'buy' | 'sell';
-  quantity: number;
-  price: number;
-  transaction_date: string;
-  portfolio_transaction_comments: Comment[];
 };
 
 type SheetMatch = {
@@ -34,15 +20,9 @@ type SheetMatch = {
   row: Record<string, string | number | null>;
 };
 
-const TXN_PAGE_SIZE = 20;
-
 export function PortfolioView() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [txnPage, setTxnPage] = useState(1);
-  const [txnTotalCount, setTxnTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [txnLoading, setTxnLoading] = useState(false);
   const [sheetMatches, setSheetMatches] = useState<Record<string, SheetMatch[]>>({});
   const [matchesLoading, setMatchesLoading] = useState(true);
   const [activeMatch, setActiveMatch] = useState<SheetMatch | null>(null);
@@ -50,23 +30,10 @@ export function PortfolioView() {
   const [savingNote, setSavingNote] = useState<string | null>(null);
 
   const [stockName, setStockName] = useState('');
-  const [txnType, setTxnType] = useState<'buy' | 'sell'>('buy');
   const [quantity, setQuantity] = useState('');
   const [price, setPrice] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const loadTransactions = useCallback(async (page: number) => {
-    setTxnLoading(true);
-    const res = await fetch(`/api/portfolio/transactions?page=${page}&pageSize=${TXN_PAGE_SIZE}`);
-    if (res.ok) {
-      const json = await res.json();
-      setTransactions(json.transactions);
-      setTxnTotalCount(json.totalCount);
-      setTxnPage(json.page);
-    }
-    setTxnLoading(false);
-  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -82,14 +49,12 @@ export function PortfolioView() {
     // wait on the slower cross-sheet match lookup below.
     setLoading(false);
 
-    loadTransactions(1);
-
     fetch('/api/portfolio/holdings/matches')
       .then((res) => (res.ok ? res.json() : { matches: {} }))
       .then((json) => setSheetMatches(json.matches || {}))
       .catch(() => {})
       .finally(() => setMatchesLoading(false));
-  }, [loadTransactions]);
+  }, []);
 
   const saveNote = async (stockName: string) => {
     setSavingNote(stockName);
@@ -110,8 +75,7 @@ export function PortfolioView() {
     load();
   }, [load]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (type: 'buy' | 'sell') => {
     setErrorMsg(null);
 
     const qty = Number(quantity);
@@ -125,7 +89,7 @@ export function PortfolioView() {
     const res = await fetch('/api/portfolio/transactions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stock_name: stockName.trim(), transaction_type: txnType, quantity: qty, price: prc }),
+      body: JSON.stringify({ stock_name: stockName.trim(), transaction_type: type, quantity: qty, price: prc }),
     });
 
     if (!res.ok) {
@@ -153,16 +117,8 @@ export function PortfolioView() {
         }}
       >
         <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 12 }}>Add a trade</h2>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <StockNameInput value={stockName} onChange={setStockName} />
-          <select
-            value={txnType}
-            onChange={(e) => setTxnType(e.target.value as 'buy' | 'sell')}
-            style={{ padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc' }}
-          >
-            <option value="buy">Buy</option>
-            <option value="sell">Sell</option>
-          </select>
           <input
             type="number"
             step="any"
@@ -181,10 +137,21 @@ export function PortfolioView() {
             onChange={(e) => setPrice(e.target.value)}
             style={{ width: 110 }}
           />
-          <button type="submit" disabled={submitting}>
-            {submitting ? 'Saving…' : 'Add'}
+          <button
+            onClick={() => handleSubmit('buy')}
+            disabled={submitting}
+            style={{ background: '#0a5', color: '#fff', border: 'none' }}
+          >
+            {submitting ? 'Saving…' : 'Buy'}
           </button>
-        </form>
+          <button
+            onClick={() => handleSubmit('sell')}
+            disabled={submitting}
+            style={{ background: '#c0392b', color: '#fff', border: 'none' }}
+          >
+            {submitting ? 'Saving…' : 'Sell'}
+          </button>
+        </div>
         {errorMsg && <p style={{ color: 'crimson', fontSize: 13, marginTop: 8 }}>{errorMsg}</p>}
         <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>
           Adding the same stock again adjusts your quantity and average
@@ -194,7 +161,12 @@ export function PortfolioView() {
       </section>
 
       <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 16, marginBottom: 12 }}>Holdings</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h2 style={{ fontSize: 16, margin: 0 }}>Holdings</h2>
+          <Link href="/portfolio/history" style={{ fontSize: 13 }}>
+            View trade history →
+          </Link>
+        </div>
         {holdings.length === 0 ? (
           <p style={{ color: '#666', fontSize: 14 }}>No holdings yet — add a trade above.</p>
         ) : (
@@ -205,8 +177,9 @@ export function PortfolioView() {
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Quantity</th>
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Avg price</th>
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Total cost</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Trade references</th>
+                <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Sheet references</th>
                 <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Note</th>
+                <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Admin note</th>
               </tr>
             </thead>
             <tbody>
@@ -257,7 +230,7 @@ export function PortfolioView() {
                           onChange={(e) =>
                             setNoteDrafts((prev) => ({ ...prev, [h.stock_name]: e.target.value }))
                           }
-                          placeholder="Add a note. Ex: Trade type, %of entry etc "
+                          placeholder="Add a note…"
                           rows={2}
                           style={{
                             flex: 1,
@@ -278,69 +251,18 @@ export function PortfolioView() {
                         )}
                       </div>
                     </td>
+                    <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2', maxWidth: 200 }}>
+                      {h.admin_note ? (
+                        <div style={{ fontSize: 13, color: '#555', whiteSpace: 'pre-wrap' }}>{h.admin_note}</div>
+                      ) : (
+                        <span style={{ color: '#bbb', fontSize: 13 }}>—</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-        )}
-      </section>
-
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 16, marginBottom: 12 }}>Trade history</h2>
-        {transactions.length === 0 ? (
-          <p style={{ color: '#666', fontSize: 14 }}>No trades yet.</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, opacity: txnLoading ? 0.6 : 1 }}>
-            {transactions.map((t) => (
-              <div key={t.id} style={{ border: '1px solid #eee', borderRadius: 8, padding: '10px 14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14 }}>
-                  <span>
-                    <strong
-                      style={{
-                        color: t.transaction_type === 'buy' ? '#0a5' : '#c0392b',
-                        textTransform: 'uppercase',
-                        fontSize: 12,
-                        marginRight: 8,
-                      }}
-                    >
-                      {t.transaction_type}
-                    </strong>
-                    {t.stock_name} · {t.quantity} @ {Number(t.price).toFixed(2)}
-                  </span>
-                  <span style={{ fontSize: 12, color: '#888' }}>
-                    {new Date(t.transaction_date).toLocaleString()}
-                  </span>
-                </div>
-                {t.portfolio_transaction_comments?.length > 0 && (
-                  <div style={{ marginTop: 8, paddingLeft: 10, borderLeft: '2px solid #eee' }}>
-                    {t.portfolio_transaction_comments.map((c) => (
-                      <div key={c.id} style={{ fontSize: 13, color: '#555', marginBottom: 4 }}>
-                        <span style={{ color: '#888' }}>Admin note:</span> {c.comment}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {txnTotalCount > TXN_PAGE_SIZE && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 }}>
-            <button disabled={txnLoading || txnPage <= 1} onClick={() => loadTransactions(txnPage - 1)}>
-              Previous
-            </button>
-            <span style={{ fontSize: 13 }}>
-              Page {txnPage} of {Math.max(1, Math.ceil(txnTotalCount / TXN_PAGE_SIZE))} ({txnTotalCount} trades)
-            </span>
-            <button
-              disabled={txnLoading || txnPage >= Math.ceil(txnTotalCount / TXN_PAGE_SIZE)}
-              onClick={() => loadTransactions(txnPage + 1)}
-            >
-              Next
-            </button>
-          </div>
         )}
       </section>
 

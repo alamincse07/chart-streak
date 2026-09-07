@@ -35,7 +35,7 @@ export const config = {
   matcher: [
     '/',
     '/sheets/:path*',
-    '/portfolio',
+    '/portfolio/:path*',
     '/broadcasts',
     '/admin/:path*',
     '/api/sheets/:path*',
