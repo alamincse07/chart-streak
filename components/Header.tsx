@@ -28,7 +28,7 @@ export function Header() {
         zIndex: 1000,
       }}
     >
-      <nav style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+      <nav style={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
         <Link href="/" style={{ fontWeight: 600, marginRight: 12, textDecoration: 'none', color: '#fff' }}>
           Chart Streak
         </Link>
