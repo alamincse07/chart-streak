@@ -20,7 +20,7 @@ export function Header() {
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: 8,
+
         padding: '10px 16px',
         background: NAVY,
         position: 'sticky',
