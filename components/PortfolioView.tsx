@@ -117,11 +117,9 @@ export function PortfolioView() {
         }}
       >
         <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 12 }}>Add a trade</h2>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          <div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           <StockNameInput value={stockName} onChange={setStockName} />
-          </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <input
             type="number"
             step="any"
@@ -129,7 +127,7 @@ export function PortfolioView() {
             placeholder="Quantity"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            style={{ width: 110 }}
+            style={{ width: 70 }}
           />
           <input
             type="number"
@@ -140,17 +138,20 @@ export function PortfolioView() {
             onChange={(e) => setPrice(e.target.value)}
             style={{ width: 70 }}
           />
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          
           <button
             onClick={() => handleSubmit('buy')}
             disabled={submitting}
-            style={{ background: '#0a5', color: '#fff', border: 'none' }}
+            style={{ background: '#0a5', width:130, color: '#fff', border: 'none' }}
           >
             {submitting ? 'Saving…' : 'Buy'}
           </button>
           <button
             onClick={() => handleSubmit('sell')}
             disabled={submitting}
-            style={{ background: '#c0392b', color: '#fff',  border: 'none' }}
+            style={{ background: '#c0392b', width:130, color: '#fff',  border: 'none' }}
           >
             {submitting ? 'Saving…' : 'Sell'}
           </button>

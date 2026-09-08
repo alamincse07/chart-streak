@@ -40,7 +40,7 @@ export function StockNameInput({
   };
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', flex: '1 1 180px' }}>
+    <div ref={containerRef} style={{ position: 'relative', flex: '1 1 100px' }}>
       <input
         type="text"
         placeholder={placeholder}
