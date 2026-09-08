@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { formatPrice } from '@/lib/helper';
 import Link from 'next/link';
 
 type Holding = {
@@ -129,7 +130,7 @@ export function AdminHoldingsView() {
                 >
                   {expandedStock === s.stockName ? '▾' : '▸'} <strong>{s.stockName}</strong> —{' '}
                   {s.holderCount} user{s.holderCount === 1 ? '' : 's'} holding · {s.totalQuantity} total
-                  quantity · {s.totalInvested.toFixed(2)} total invested
+                  quantity · {formatPrice(s.totalInvested)} total invested
                 </button>
                 <Link
                   href={`/admin/broadcasts?stock=${encodeURIComponent(s.stockName)}`}
@@ -173,7 +174,7 @@ export function AdminHoldingsView() {
                           {h.avgPrice.toFixed(2)}
                         </td>
                         <td data-label="Total cost" style={{ padding: 6, textAlign: 'right' }}>
-                          {(h.quantity * h.avgPrice).toFixed(2)}
+                          {formatPrice(h.quantity * h.avgPrice)}
                         </td>
                       </tr>
                     ))}

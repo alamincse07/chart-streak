@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { RowDetailModal } from './RowDetailModal';
 import { StockNameInput } from './StockNameInput';
+import { formatPrice } from '@/lib/helper';
 
 type Holding = {
   stock_name: string;
@@ -80,7 +81,7 @@ export function PortfolioView() {
 
     const qty = Number(quantity);
     const prc = Number(price);
-    if (!stockName.trim() || !(qty > 0) || !(prc >= 0)) {
+    if (!stockName.trim() || !(qty > 0) || !(prc >= 0) || (prc > 990)) {
       setErrorMsg('Enter a stock name, a positive quantity, and a valid price.');
       return;
     }
@@ -99,7 +100,7 @@ export function PortfolioView() {
       setStockName('');
       setQuantity('');
       setPrice('');
-      await load();
+     alert('Refresh to see the portfolio changes!');
     }
     setSubmitting(false);
   };
@@ -112,7 +113,7 @@ export function PortfolioView() {
         style={{
           border: '1px solid #eee',
           borderRadius: 10,
-          padding: '18px 20px',
+          padding: '10px',
           marginBottom: 24,
         }}
       >
@@ -139,7 +140,7 @@ export function PortfolioView() {
             style={{ width: 70 }}
           />
           </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, padding:16, flexWrap: 'wrap', alignItems: 'center' }}>
           
           <button
             onClick={() => handleSubmit('buy')}
@@ -211,7 +212,7 @@ export function PortfolioView() {
                       data-label="Total cost"
                       style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}
                     >
-                      {(h.quantity * h.avg_price).toFixed(2)}
+                      {formatPrice(h.quantity * h.avg_price)}
                     </td>
                     <td data-label="Sheet references" style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>
                       {matches.length === 0 ? (

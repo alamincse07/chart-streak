@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
+import { formatPrice } from '@/lib/helper';
 import Link from 'next/link';
 
 type UserSummary = {
@@ -143,7 +144,7 @@ export function AdminPortfoliosView() {
               <span style={{ color: '#888', fontSize: 13 }}>{u.email}</span>
             </span>
             <span style={{ fontSize: 13, color: '#666' }}>
-              {u.holdingsCount} holdings · {u.totalInvested.toFixed(2)} invested
+              {u.holdingsCount} holdings = {formatPrice(u.totalInvested)}
             </span>
           </button>
 
