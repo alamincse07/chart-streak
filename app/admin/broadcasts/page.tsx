@@ -12,7 +12,7 @@ export default async function AdminBroadcastsPage({
   if (!session) redirect('/api/auth/signin');
   if (!(session.user as any).isAdmin) {
     return (
-      <main style={{ padding: '2rem' }}>
+      <main style={{ padding: '1rem' }}>
         <h1 style={{ fontSize: 20 }}>Not authorized</h1>
         <p>Your account doesn&apos;t have admin access.</p>
       </main>
@@ -20,7 +20,7 @@ export default async function AdminBroadcastsPage({
   }
 
   return (
-    <main style={{ padding: '2rem' }}>
+    <main style={{ padding: '1rem' }}>
       <h1 style={{ fontSize: 20, marginBottom: 16 }}>Broadcast notes</h1>
       <AdminBroadcastList initialStockName={searchParams.stock || ''} />
     </main>

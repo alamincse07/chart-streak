@@ -27,7 +27,59 @@ input[type='text'] {
   border: 1px solid #ccc;
   border-radius: 4px;
 }
+input[type='number'] 
+  {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+
 
 a {
   color: #1d6fd6;
+}
+
+.card {
+  box-shadow: 0 4px 8px 0 rgb(4 86 255 / 20%);
+  background: #fbfdff;
+}
+
+/* Below this width, any table with class="responsive-table" collapses
+   from columns into stacked cards — each <td> becomes its own line,
+   labeled via its data-label attribute instead of a shared header row.
+   Used across the portfolio/holdings tables, which have too many columns
+   to fit a phone screen as a normal table. */
+@media (max-width: 640px) {
+  table.responsive-table thead {
+    display: none;
+  }
+  table.responsive-table,
+  table.responsive-table tbody,
+  table.responsive-table tr,
+  table.responsive-table td {
+    display: block;
+    width: 100%;
+  }
+  table.responsive-table tr {
+    margin-bottom: 12px;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  table.responsive-table td {
+    text-align: left !important;
+    padding: 6px 0 !important;
+    border-bottom: none !important;
+  }
+  table.responsive-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    color: #888;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  table.responsive-table td:empty {
+    display: none;
+  }
 }

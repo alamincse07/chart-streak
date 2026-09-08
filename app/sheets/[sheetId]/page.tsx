@@ -15,7 +15,7 @@ export default async function SheetPage({ params }: { params: { sheetId: string 
   const status = (session.user as any).status;
   if (status !== 'approved') {
     return (
-      <main style={{ padding: '2rem' }}>
+      <main style={{ padding: '1rem' }}>
         <h1 style={{ fontSize: 20 }}>
           {status === 'blocked' ? 'Access blocked' : 'Access pending approval'}
         </h1>

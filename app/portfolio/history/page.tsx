@@ -14,7 +14,7 @@ export default async function TradeHistoryPage() {
   const status = (session.user as any).status;
   if (status !== 'approved') {
     return (
-      <main style={{ padding: '2rem' }}>
+      <main style={{ padding: '1rem' }}>
         <h1 style={{ fontSize: 20 }}>
           {status === 'blocked' ? 'Access blocked' : 'Access pending approval'}
         </h1>
@@ -28,7 +28,7 @@ export default async function TradeHistoryPage() {
   }
 
   return (
-    <main style={{ padding: '2rem', position: 'relative' }}>
+    <main style={{ padding: '1rem', position: 'relative' }}>
       <Link href="/portfolio" style={{ fontSize: 13, display: 'inline-block', marginBottom: 12 }}>
         ← Back to portfolio
       </Link>

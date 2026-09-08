@@ -10,7 +10,7 @@ export default async function AdminUserTradesPage({ params }: { params: { userId
   if (!session) redirect('/api/auth/signin');
   if (!(session.user as any).isAdmin) {
     return (
-      <main style={{ padding: '2rem' }}>
+      <main style={{ padding: '1rem' }}>
         <h1 style={{ fontSize: 20 }}>Not authorized</h1>
         <p>Your account doesn&apos;t have admin access.</p>
       </main>
@@ -28,7 +28,7 @@ export default async function AdminUserTradesPage({ params }: { params: { userId
   }
 
   return (
-    <main style={{ padding: '2rem' }}>
+    <main style={{ padding: '1rem' }}>
       <Link href="/admin/portfolios" style={{ fontSize: 13, display: 'inline-block', marginBottom: 12 }}>
         ← Back to portfolios
       </Link>

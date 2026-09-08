@@ -12,7 +12,7 @@ export default async function HomePage() {
     return (
       <main
         style={{
-          padding: '1rem 2rem',
+          padding: '1rem',
           maxWidth: 560,
           fontSize: 16,
           margin: '0 auto',
@@ -56,7 +56,7 @@ export default async function HomePage() {
 
   if (status !== 'approved') {
     return (
-      <main style={{ padding: '2rem' }}>
+      <main style={{ padding: '1rem' }}>
         <h1 style={{ fontSize: 20 }}>
           {status === 'blocked' ? 'Access blocked' : 'Access pending approval'}
         </h1>

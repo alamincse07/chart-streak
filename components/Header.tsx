@@ -25,7 +25,7 @@ export function Header() {
         background: NAVY,
         position: 'sticky',
         top: 0,
-        zIndex: 10,
+        zIndex: 1000,
       }}
     >
       <nav style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>

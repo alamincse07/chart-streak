@@ -17,7 +17,7 @@ export function SheetsNavDropdown() {
       },
       {
           "id": "5e7090a9-2b1f-43f1-a1ac-6b2558748605",
-          "display_name": "Notes",
+          "display_name": "Index Update",
          
       },
       {

@@ -38,7 +38,7 @@ export default function CompleteProfilePage() {
 
   if (sessionStatus === 'loading') {
     return (
-      <main style={{ padding: '2rem', maxWidth: 420 }}>
+      <main style={{ padding: '1rem', maxWidth: 420 }}>
         <p>Loading…</p>
       </main>
     );
@@ -50,7 +50,7 @@ export default function CompleteProfilePage() {
   }
 
   return (
-    <main style={{ padding: '2rem', maxWidth: 420 }}>
+    <main style={{ padding: '1rem', maxWidth: 420 }}>
       <h1 style={{ fontSize: 20, marginBottom: 8 }}>Complete your profile</h1>
       <p style={{ color: '#666', fontSize: 14, marginBottom: 20 }}>
         We need your name and phone number before you can request access to

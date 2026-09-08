@@ -12,6 +12,11 @@ export function UserMenuDropdown() {
 
   const approvalStatus = (session?.user as any)?.status;
   const email = session?.user?.email || '';
+  const name = session?.user?.name || '';
+  // Short label for the header button — full name would still overflow on
+  // narrow screens, so use just the first name, falling back to the part
+  // of the email before the @ if no name is set.
+  const displayLabel = 'Info'; // name.trim().split(' ')[0] || email.split('@')[0] || '';
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -52,7 +57,7 @@ export function UserMenuDropdown() {
           display: 'flex',
           alignItems: 'center',
           gap: 6,
-          maxWidth: 220,
+          maxWidth: 120,
         }}
       >
         <span
@@ -62,9 +67,9 @@ export function UserMenuDropdown() {
             whiteSpace: 'nowrap',
           }}
         >
-          {'Info'}
+          {displayLabel}
         </span>
-        <span style={{ fontSize: 10 }}>{open ? '▲' : '▼'}</span>
+        <span style={{ fontSize: 10, flexShrink: 0 }}>{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
@@ -78,11 +83,25 @@ export function UserMenuDropdown() {
             border: '1px solid #e5e5e5',
             borderRadius: 8,
             boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-            minWidth: 200,
+            width: 200,
+            maxWidth: 'calc(100vw - 24px)',
             zIndex: 20,
             overflow: 'hidden',
           }}
         >
+          <div
+            style={{
+              padding: '10px 14px',
+              fontSize: 12,
+              color: '#888',
+              borderBottom: '1px solid #f2f2f2',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {email}
+          </div>
           {approvalStatus === 'approved' && (
             <>
               <Link href="/portfolio" style={itemStyle('/portfolio')}>

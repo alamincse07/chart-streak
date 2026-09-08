@@ -8,7 +8,7 @@ export default async function AdminPage() {
   if (!session) redirect('/api/auth/signin');
   if (!(session.user as any).isAdmin) {
     return (
-      <main style={{ padding: '2rem' }}>
+      <main style={{ padding: '1rem' }}>
         <h1 style={{ fontSize: 20 }}>Not authorized</h1>
         <p>Your account doesn&apos;t have admin access.</p>
       </main>
@@ -16,7 +16,7 @@ export default async function AdminPage() {
   }
 
   return (
-    <main style={{ padding: '2rem' }}>
+    <main style={{ padding: '1rem' }}>
       <h1 style={{ fontSize: 20, marginBottom: 16 }}>User access</h1>
       <AdminUserList />
     </main>

@@ -48,14 +48,20 @@ function HoldingRow({
   };
 
   return (
-    <tr>
-      <td style={{ padding: 6 }}>{holding.stock_name}</td>
-      <td style={{ padding: 6, textAlign: 'right' }}>{holding.quantity}</td>
-      <td style={{ padding: 6, textAlign: 'right' }}>{holding.avg_price.toFixed(2)}</td>
-      <td style={{ padding: 6, maxWidth: 200 }}>
+    <tr className='card'>
+      <td data-label="Stock" style={{ padding: 6 }}>
+        {holding.stock_name}
+      </td>
+      <td data-label="Quantity" style={{ padding: 6, textAlign: 'right' }}>
+        {holding.quantity}
+      </td>
+      <td data-label="Avg price" style={{ padding: 6, textAlign: 'right' }}>
+        {holding.avg_price.toFixed(2)}
+      </td>
+      <td data-label="User's note" style={{ padding: 6, maxWidth: 200 }}>
         {holding.note ? holding.note : <span style={{ color: '#bbb' }}>—</span>}
       </td>
-      <td style={{ padding: 6, minWidth: 200 }}>
+      <td data-label="Admin note" style={{ padding: 6, minWidth: 200 }}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
           <textarea
             value={draft}
@@ -156,7 +162,7 @@ export function AdminPortfoliosView() {
                   {holdings.length === 0 ? (
                     <p style={{ color: '#666', fontSize: 13 }}>No holdings.</p>
                   ) : (
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                       <thead>
                         <tr>
                           <th style={{ textAlign: 'left', padding: 6 }}>Stock</th>

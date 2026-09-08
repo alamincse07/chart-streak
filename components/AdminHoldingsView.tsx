@@ -147,7 +147,10 @@ export function AdminHoldingsView() {
               </div>
 
               {expandedStock === s.stockName && (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, background: '#fff' }}>
+                <table
+                  className="responsive-table"
+                  style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, background: '#fff' }}
+                >
                   <thead>
                     <tr>
                       <th style={{ textAlign: 'left', padding: 6, borderTop: '1px solid #e5e9f0' }}>User</th>
@@ -158,14 +161,18 @@ export function AdminHoldingsView() {
                   </thead>
                   <tbody>
                     {holdersForStock(s.stockName).map((h) => (
-                      <tr key={h.userId}>
-                        <td style={{ padding: 6 }}>
+                      <tr className='card' key={h.userId}>
+                        <td data-label="User" style={{ padding: 6 }}>
                           {h.userName || h.userEmail}
                           <div style={{ fontSize: 11, color: '#888' }}>{h.userEmail}</div>
                         </td>
-                        <td style={{ padding: 6, textAlign: 'right' }}>{h.quantity}</td>
-                        <td style={{ padding: 6, textAlign: 'right' }}>{h.avgPrice.toFixed(2)}</td>
-                        <td style={{ padding: 6, textAlign: 'right' }}>
+                        <td data-label="Quantity" style={{ padding: 6, textAlign: 'right' }}>
+                          {h.quantity}
+                        </td>
+                        <td data-label="Avg price" style={{ padding: 6, textAlign: 'right' }}>
+                          {h.avgPrice.toFixed(2)}
+                        </td>
+                        <td data-label="Total cost" style={{ padding: 6, textAlign: 'right' }}>
                           {(h.quantity * h.avgPrice).toFixed(2)}
                         </td>
                       </tr>

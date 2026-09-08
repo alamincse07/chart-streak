@@ -117,8 +117,11 @@ export function PortfolioView() {
         }}
       >
         <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 12 }}>Add a trade</h2>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div>
           <StockNameInput value={stockName} onChange={setStockName} />
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <input
             type="number"
             step="any"
@@ -135,7 +138,7 @@ export function PortfolioView() {
             placeholder="Price"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            style={{ width: 110 }}
+            style={{ width: 70 }}
           />
           <button
             onClick={() => handleSubmit('buy')}
@@ -147,17 +150,18 @@ export function PortfolioView() {
           <button
             onClick={() => handleSubmit('sell')}
             disabled={submitting}
-            style={{ background: '#c0392b', color: '#fff', border: 'none' }}
+            style={{ background: '#c0392b', color: '#fff',  border: 'none' }}
           >
             {submitting ? 'Saving…' : 'Sell'}
           </button>
         </div>
         {errorMsg && <p style={{ color: 'crimson', fontSize: 13, marginTop: 8 }}>{errorMsg}</p>}
-        <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>
+        <p style={{ fontSize: 12, color: '#708cbf', marginTop: 8 }}>
           Adding the same stock again adjusts your quantity and average
-          price automatically — buys re-average your cost basis, sells
-          reduce quantity without changing the average.
+          price automatically.
         </p>
+          </div>
+         
       </section>
 
       <section style={{ marginBottom: 24 }}>
@@ -170,7 +174,7 @@ export function PortfolioView() {
         {holdings.length === 0 ? (
           <p style={{ color: '#666', fontSize: 14 }}>No holdings yet — add a trade above.</p>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+          <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
             <thead>
               <tr>
                 <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Stock</th>
@@ -186,18 +190,29 @@ export function PortfolioView() {
               {holdings.map((h) => {
                 const matches = sheetMatches[h.stock_name] || [];
                 return (
-                  <tr key={h.stock_name}>
-                    <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>{h.stock_name}</td>
-                    <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}>
+                  <tr className='card' key={h.stock_name}>
+                    <td data-label="Stock" style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>
+                      {h.stock_name}
+                    </td>
+                    <td
+                      data-label="Quantity"
+                      style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}
+                    >
                       {h.quantity}
                     </td>
-                    <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}>
+                    <td
+                      data-label="Avg price"
+                      style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}
+                    >
                       {h.avg_price.toFixed(2)}
                     </td>
-                    <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}>
+                    <td
+                      data-label="Total cost"
+                      style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}
+                    >
                       {(h.quantity * h.avg_price).toFixed(2)}
                     </td>
-                    <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>
+                    <td data-label="Sheet references" style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>
                       {matches.length === 0 ? (
                         <span style={{ color: '#bbb', fontSize: 13 }}>
                           {matchesLoading ? 'Checking…' : '—'}
@@ -223,7 +238,7 @@ export function PortfolioView() {
                         </div>
                       )}
                     </td>
-                    <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2', minWidth: 200 }}>
+                    <td data-label="Note" style={{ padding: 8, borderBottom: '1px solid #f2f2f2', minWidth: 200 }}>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
                         <textarea
                           value={noteDrafts[h.stock_name] ?? ''}
@@ -251,7 +266,10 @@ export function PortfolioView() {
                         )}
                       </div>
                     </td>
-                    <td style={{ padding: 8, borderBottom: '1px solid #f2f2f2', maxWidth: 200 }}>
+                    <td
+                      data-label="Admin note"
+                      style={{ padding: 8, borderBottom: '1px solid #f2f2f2', maxWidth: 200 }}
+                    >
                       {h.admin_note ? (
                         <div style={{ fontSize: 13, color: '#555', whiteSpace: 'pre-wrap' }}>{h.admin_note}</div>
                       ) : (
