@@ -59,6 +59,9 @@ function HoldingRow({
       <td data-label="Avg price" style={{ padding: 6, textAlign: 'right' }}>
         {holding.avg_price.toFixed(2)}
       </td>
+      <td data-label="Total" style={{ padding: 6, textAlign: 'right' }}>
+        {formatPrice(holding.quantity * holding.avg_price)}
+      </td>
       <td data-label="User's note" style={{ padding: 6, maxWidth: 200 }}>
         {holding.note ? holding.note : <span style={{ color: '#bbb' }}>—</span>}
       </td>
@@ -169,6 +172,7 @@ export function AdminPortfoliosView() {
                           <th style={{ textAlign: 'left', padding: 6 }}>Stock</th>
                           <th style={{ textAlign: 'right', padding: 6 }}>Quantity</th>
                           <th style={{ textAlign: 'right', padding: 6 }}>Avg price</th>
+                          <th style={{ textAlign: 'right', padding: 6 }}>Total</th>
                           <th style={{ textAlign: 'left', padding: 6 }}>User&apos;s note</th>
                           <th style={{ textAlign: 'left', padding: 6 }}>Admin note</th>
                         </tr>

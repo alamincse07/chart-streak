@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: { userId: stri
     supabaseAdmin.from('users').select('id, email, name').eq('id', params.userId).single(),
     supabaseAdmin
       .from('portfolio_holdings')
-      .select('stock_name, quantity, avg_price, note, admin_note, updated_at')
+      .select('stock_name, quantity, avg_price, note, admin_note, budget, updated_at')
       .eq('user_id', params.userId)
       .gt('quantity', 0)
       .order('stock_name', { ascending: true }),

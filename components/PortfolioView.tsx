@@ -11,6 +11,7 @@ type Holding = {
   avg_price: number;
   note: string | null;
   admin_note: string | null;
+  budget: number | null;
   updated_at: string;
 };
 
@@ -33,6 +34,10 @@ export function PortfolioView() {
   const [avgPriceDrafts, setAvgPriceDrafts] = useState<Record<string, string>>({});
   const [savingHolding, setSavingHolding] = useState<string | null>(null);
   const [holdingErrors, setHoldingErrors] = useState<Record<string, string>>({});
+  
+  const [budgetDrafts, setBudgetDrafts] = useState<Record<string, string>>({});
+  const [savingBudget, setSavingBudget] = useState<string | null>(null);
+  const [budgetErrors, setBudgetErrors] = useState<Record<string, string>>({});
 
   const [stockName, setStockName] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -54,6 +59,11 @@ export function PortfolioView() {
       );
       setAvgPriceDrafts(
         Object.fromEntries((json.holdings as Holding[]).map((h) => [h.stock_name, String(h.avg_price)]))
+      );
+      setBudgetDrafts(
+        Object.fromEntries(
+          (json.holdings as Holding[]).map((h) => [h.stock_name, h.budget != null ? String(h.budget) : ''])
+        )
       );
     }
     // Holdings are shown as soon as they're back — don't make the user
@@ -111,6 +121,38 @@ export function PortfolioView() {
     }
     setSavingHolding(null);
   };
+
+
+  
+  const saveBudget = async (stock: string) => {
+    setBudgetErrors((prev) => ({ ...prev, [stock]: '' }));
+
+    const draft = budgetDrafts[stock] ?? '';
+    let budgetValue: number | null = null;
+    if (draft !== '') {
+      budgetValue = Number(draft);
+      if (!Number.isFinite(budgetValue) || budgetValue < 0) {
+        setBudgetErrors((prev) => ({ ...prev, [stock]: 'Enter a valid non-negative number.' }));
+        return;
+      }
+    }
+
+    setSavingBudget(stock);
+    const res = await fetch('/api/portfolio/holdings/budget', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stock_name: stock, budget: budgetValue }),
+    });
+
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setBudgetErrors((prev) => ({ ...prev, [stock]: json.error || 'Failed to save' }));
+    } else {
+      setHoldings((prev) => prev.map((h) => (h.stock_name === stock ? { ...h, budget: budgetValue } : h)));
+    }
+    setSavingBudget(null);
+  };
+
 
   useEffect(() => {
     load();
@@ -223,6 +265,8 @@ export function PortfolioView() {
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Quantity</th>
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Avg price</th>
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Total cost</th>
+                <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Budget</th>
+                
                 <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Sheet references</th>
                 <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Note</th>
                 <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Admin note</th>
@@ -237,6 +281,12 @@ export function PortfolioView() {
                 const qtyNum = Number(qtyDraft);
                 const avgNum = Number(avgDraft);
                 const previewTotal = Number.isFinite(qtyNum) && Number.isFinite(avgNum) ? qtyNum * avgNum : NaN;
+
+                const budgetDraft = budgetDrafts[h.stock_name] ?? (h.budget != null ? String(h.budget) : '');
+                const budgetIsDirty = budgetDraft !== (h.budget != null ? String(h.budget) : '');
+                const invested = h.quantity * h.avg_price;
+                const remaining = h.budget != null ? h.budget - invested : null;
+                const percentRemaining = remaining != null && h.budget! > 0 ? (remaining / h.budget!) * 100 : null;
 
                 return (
                   <tr className='card' key={h.stock_name}>
@@ -293,7 +343,57 @@ export function PortfolioView() {
                     >
                       {Number.isFinite(previewTotal) ? formatPrice(previewTotal) : '—'}
                     </td>
-                    <td data-label="Instruction references" style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>
+
+                    <td
+                      data-label="Budget"
+                      style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}
+                    >
+                      <div style={{ display: 'flex1', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          placeholder="Set budget"
+                          value={budgetDraft}
+                          onChange={(e) =>
+                            setBudgetDrafts((prev) => ({ ...prev, [h.stock_name]: e.target.value }))
+                          }
+                          style={{ width: 100, textAlign: 'right' }}
+                        />
+                        {budgetIsDirty && (
+                          <button
+                            onClick={() => saveBudget(h.stock_name)}
+                            disabled={savingBudget === h.stock_name}
+                            style={{ fontSize: 12, padding: '4px 8px', whiteSpace: 'nowrap' }}
+                          >
+                            {savingBudget === h.stock_name ? 'Saving…' : 'Save'}
+                          </button>
+                        )}
+                      </div>
+                      {budgetErrors[h.stock_name] && (
+                        <div style={{ color: 'crimson', fontSize: 11, marginTop: 4, textAlign: 'right' }}>
+                          {budgetErrors[h.stock_name]}
+                        </div>
+                      )}
+                      {h.budget != null && remaining != null && (
+                        <div
+                          style={{
+                            fontSize: 12,
+                            marginTop: 4,
+                            textAlign: 'right',
+                            color: remaining < 0 ? '#e91e09' : percentRemaining !== null && percentRemaining <= 20 ? '#b8860b' : '#0a5',
+                          }}
+                        >
+                          {remaining < 0
+                            ? `Over by ${formatPrice(Math.abs(remaining))}`
+                            : `${formatPrice(remaining)}${
+                                percentRemaining !== null ? ` (${Math.round(percentRemaining)}%)` : ''
+                              } left`}
+                        </div>
+                      )}
+                    </td>
+
+                    <td data-label="Trade references" style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>
                       {matches.length === 0 ? (
                         <span style={{ color: '#bbb', fontSize: 13 }}>
                           {matchesLoading ? 'Checking…' : '—'}
