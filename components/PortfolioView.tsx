@@ -29,6 +29,10 @@ export function PortfolioView() {
   const [activeMatch, setActiveMatch] = useState<SheetMatch | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [savingNote, setSavingNote] = useState<string | null>(null);
+  const [qtyDrafts, setQtyDrafts] = useState<Record<string, string>>({});
+  const [avgPriceDrafts, setAvgPriceDrafts] = useState<Record<string, string>>({});
+  const [savingHolding, setSavingHolding] = useState<string | null>(null);
+  const [holdingErrors, setHoldingErrors] = useState<Record<string, string>>({});
 
   const [stockName, setStockName] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -44,6 +48,12 @@ export function PortfolioView() {
       setHoldings(json.holdings);
       setNoteDrafts(
         Object.fromEntries((json.holdings as Holding[]).map((h) => [h.stock_name, h.note || '']))
+      );
+      setQtyDrafts(
+        Object.fromEntries((json.holdings as Holding[]).map((h) => [h.stock_name, String(h.quantity)]))
+      );
+      setAvgPriceDrafts(
+        Object.fromEntries((json.holdings as Holding[]).map((h) => [h.stock_name, String(h.avg_price)]))
       );
     }
     // Holdings are shown as soon as they're back — don't make the user
@@ -70,6 +80,36 @@ export function PortfolioView() {
       );
     }
     setSavingNote(null);
+  };
+
+  const saveHoldingEdit = async (stock: string) => {
+    setHoldingErrors((prev) => ({ ...prev, [stock]: '' }));
+
+    const qty = Number(qtyDrafts[stock]);
+    const avg = Number(avgPriceDrafts[stock]);
+    if (!Number.isFinite(qty) || qty < 0 || !Number.isFinite(avg) || avg < 0) {
+      setHoldingErrors((prev) => ({ ...prev, [stock]: 'Enter valid non-negative numbers.' }));
+      return;
+    }
+
+    setSavingHolding(stock);
+    const res = await fetch('/api/portfolio/holdings/edit', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stock_name: stock, quantity: qty, avg_price: avg }),
+    });
+
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setHoldingErrors((prev) => ({ ...prev, [stock]: json.error || 'Failed to save' }));
+    } else {
+      setHoldings((prev) =>
+        prev
+          .map((h) => (h.stock_name === stock ? { ...h, quantity: qty, avg_price: avg } : h))
+          .filter((h) => h.quantity > 0) // matches the API's own gt(quantity, 0) filter
+      );
+    }
+    setSavingHolding(null);
   };
 
   useEffect(() => {
@@ -191,6 +231,13 @@ export function PortfolioView() {
             <tbody>
               {holdings.map((h) => {
                 const matches = sheetMatches[h.stock_name] || [];
+                const qtyDraft = qtyDrafts[h.stock_name] ?? String(h.quantity);
+                const avgDraft = avgPriceDrafts[h.stock_name] ?? String(h.avg_price);
+                const isDirty = qtyDraft !== String(h.quantity) || avgDraft !== String(h.avg_price);
+                const qtyNum = Number(qtyDraft);
+                const avgNum = Number(avgDraft);
+                const previewTotal = Number.isFinite(qtyNum) && Number.isFinite(avgNum) ? qtyNum * avgNum : NaN;
+
                 return (
                   <tr className='card' key={h.stock_name}>
                     <td data-label="Stock" style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>
@@ -200,21 +247,53 @@ export function PortfolioView() {
                       data-label="Quantity"
                       style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}
                     >
-                      {h.quantity}
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        value={qtyDraft}
+                        onChange={(e) => setQtyDrafts((prev) => ({ ...prev, [h.stock_name]: e.target.value }))}
+                        style={{ width: 90, textAlign: 'right' }}
+                      />
                     </td>
                     <td
                       data-label="Avg price"
                       style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}
                     >
-                      {h.avg_price.toFixed(2)}
+                      <div style={{ display: 'flex1', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          value={avgDraft}
+                          onChange={(e) =>
+                            setAvgPriceDrafts((prev) => ({ ...prev, [h.stock_name]: e.target.value }))
+                          }
+                          style={{ width: 90, textAlign: 'right' }}
+                        />
+                        {isDirty && (
+                          <button
+                            onClick={() => saveHoldingEdit(h.stock_name)}
+                            disabled={savingHolding === h.stock_name}
+                            style={{ fontSize: 12, margin: '10px', color:'green',  padding: '4px 8px', whiteSpace: 'nowrap' }}
+                          >
+                            {savingHolding === h.stock_name ? 'Saving…' : 'Save'}
+                          </button>
+                        )}
+                      </div>
+                      {holdingErrors[h.stock_name] && (
+                        <div style={{ color: 'crimson', fontSize: 11, marginTop: 4, textAlign: 'right' }}>
+                          {holdingErrors[h.stock_name]}
+                        </div>
+                      )}
                     </td>
                     <td
                       data-label="Total cost"
                       style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}
                     >
-                      {formatPrice(h.quantity * h.avg_price)}
+                      {Number.isFinite(previewTotal) ? formatPrice(previewTotal) : '—'}
                     </td>
-                    <td data-label="Sheet references" style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>
+                    <td data-label="Instruction references" style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>
                       {matches.length === 0 ? (
                         <span style={{ color: '#bbb', fontSize: 13 }}>
                           {matchesLoading ? 'Checking…' : '—'}
