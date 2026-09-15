@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { RowDetailModal } from './RowDetailModal';
 import { StockNameInput } from './StockNameInput';
+import { formatCompact } from '@/lib/formatNumber';
 import { formatPrice } from '@/lib/helper';
 
 type Holding = {
@@ -12,7 +13,7 @@ type Holding = {
   note: string | null;
   admin_note: string | null;
   budget: number | null;
-  updated_at: string;
+  updated_at?: string;
 };
 
 type SheetMatch = {
@@ -22,23 +23,48 @@ type SheetMatch = {
   row: Record<string, string | number | null>;
 };
 
-export function PortfolioView() {
+type PortfolioViewProps = {
+  /** 'user' (default): the signed-in user's own portfolio, fully editable
+   *  except admin_note. 'admin': viewing someone else's portfolio — every
+   *  field is read-only except the admin note. */
+  mode?: 'user' | 'admin';
+  /** Required when mode="admin" — whose portfolio is being viewed. */
+  userId?: string;
+};
+
+export function PortfolioView({ mode = 'user', userId }: PortfolioViewProps) {
+  const isAdminView = mode === 'admin';
+
+  const holdingsEndpoint = isAdminView
+    ? `/api/admin/portfolios/${userId}?page=1&pageSize=1`
+    : '/api/portfolio/holdings';
+  const matchesEndpoint = isAdminView
+    ? `/api/admin/portfolios/${userId}/matches`
+    : '/api/portfolio/holdings/matches';
+  const tradeHistoryHref = isAdminView ? `/admin/portfolios/${userId}/trades` : '/portfolio/history';
+
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [loading, setLoading] = useState(true);
   const [sheetMatches, setSheetMatches] = useState<Record<string, SheetMatch[]>>({});
   const [matchesLoading, setMatchesLoading] = useState(true);
   const [activeMatch, setActiveMatch] = useState<SheetMatch | null>(null);
+
+  // User-editable drafts (own note, quantity/avg price direct edit, budget).
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [savingNote, setSavingNote] = useState<string | null>(null);
   const [qtyDrafts, setQtyDrafts] = useState<Record<string, string>>({});
   const [avgPriceDrafts, setAvgPriceDrafts] = useState<Record<string, string>>({});
   const [savingHolding, setSavingHolding] = useState<string | null>(null);
   const [holdingErrors, setHoldingErrors] = useState<Record<string, string>>({});
-  
   const [budgetDrafts, setBudgetDrafts] = useState<Record<string, string>>({});
   const [savingBudget, setSavingBudget] = useState<string | null>(null);
   const [budgetErrors, setBudgetErrors] = useState<Record<string, string>>({});
 
+  // Admin-editable draft (admin note only).
+  const [adminNoteDrafts, setAdminNoteDrafts] = useState<Record<string, string>>({});
+  const [savingAdminNote, setSavingAdminNote] = useState<string | null>(null);
+
+  // "Add a trade" form state — user mode only.
   const [stockName, setStockName] = useState('');
   const [quantity, setQuantity] = useState('');
   const [price, setPrice] = useState('');
@@ -47,49 +73,58 @@ export function PortfolioView() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const holdingsRes = await fetch('/api/portfolio/holdings');
-    if (holdingsRes.ok) {
-      const json = await holdingsRes.json();
-      setHoldings(json.holdings);
-      setNoteDrafts(
-        Object.fromEntries((json.holdings as Holding[]).map((h) => [h.stock_name, h.note || '']))
-      );
-      setQtyDrafts(
-        Object.fromEntries((json.holdings as Holding[]).map((h) => [h.stock_name, String(h.quantity)]))
-      );
-      setAvgPriceDrafts(
-        Object.fromEntries((json.holdings as Holding[]).map((h) => [h.stock_name, String(h.avg_price)]))
-      );
-      setBudgetDrafts(
-        Object.fromEntries(
-          (json.holdings as Holding[]).map((h) => [h.stock_name, h.budget != null ? String(h.budget) : ''])
-        )
-      );
+    const res = await fetch(holdingsEndpoint);
+    if (res.ok) {
+      const json = await res.json();
+      const h: Holding[] = json.holdings || [];
+      setHoldings(h);
+      setNoteDrafts(Object.fromEntries(h.map((x) => [x.stock_name, x.note || ''])));
+      setQtyDrafts(Object.fromEntries(h.map((x) => [x.stock_name, String(x.quantity)])));
+      setAvgPriceDrafts(Object.fromEntries(h.map((x) => [x.stock_name, String(x.avg_price)])));
+      setBudgetDrafts(Object.fromEntries(h.map((x) => [x.stock_name, x.budget != null ? String(x.budget) : ''])));
+      setAdminNoteDrafts(Object.fromEntries(h.map((x) => [x.stock_name, x.admin_note || ''])));
     }
-    // Holdings are shown as soon as they're back — don't make the user
-    // wait on the slower cross-sheet match lookup below.
+    // Holdings render immediately — the cross-sheet match lookup can
+    // populate in the background rather than blocking the page.
     setLoading(false);
 
-    fetch('/api/portfolio/holdings/matches')
+    fetch(matchesEndpoint)
       .then((res) => (res.ok ? res.json() : { matches: {} }))
       .then((json) => setSheetMatches(json.matches || {}))
       .catch(() => {})
       .finally(() => setMatchesLoading(false));
-  }, []);
+  }, [holdingsEndpoint, matchesEndpoint]);
 
-  const saveNote = async (stockName: string) => {
-    setSavingNote(stockName);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const saveNote = async (stock: string) => {
+    setSavingNote(stock);
     const res = await fetch('/api/portfolio/holdings/note', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stock_name: stockName, note: noteDrafts[stockName] || '' }),
+      body: JSON.stringify({ stock_name: stock, note: noteDrafts[stock] || '' }),
+    });
+    if (res.ok) {
+      setHoldings((prev) => prev.map((h) => (h.stock_name === stock ? { ...h, note: noteDrafts[stock] || null } : h)));
+    }
+    setSavingNote(null);
+  };
+
+  const saveAdminNote = async (stock: string) => {
+    setSavingAdminNote(stock);
+    const res = await fetch('/api/admin/portfolios/holdings/note', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, stock_name: stock, admin_note: adminNoteDrafts[stock] || '' }),
     });
     if (res.ok) {
       setHoldings((prev) =>
-        prev.map((h) => (h.stock_name === stockName ? { ...h, note: noteDrafts[stockName] || null } : h))
+        prev.map((h) => (h.stock_name === stock ? { ...h, admin_note: adminNoteDrafts[stock] || null } : h))
       );
     }
-    setSavingNote(null);
+    setSavingAdminNote(null);
   };
 
   const saveHoldingEdit = async (stock: string) => {
@@ -122,8 +157,6 @@ export function PortfolioView() {
     setSavingHolding(null);
   };
 
-
-  
   const saveBudget = async (stock: string) => {
     setBudgetErrors((prev) => ({ ...prev, [stock]: '' }));
 
@@ -152,11 +185,6 @@ export function PortfolioView() {
     }
     setSavingBudget(null);
   };
-
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   const handleSubmit = async (type: 'buy' | 'sell') => {
     setErrorMsg(null);
@@ -191,72 +219,76 @@ export function PortfolioView() {
 
   return (
     <div>
-      <section
-        style={{
-          border: '1px solid #eee',
-          borderRadius: 10,
-          padding: '10px',
-          marginBottom: 24,
-        }}
-      >
-        <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 12 }}>Add a trade</h2>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <StockNameInput value={stockName} onChange={setStockName} />
-          <input
-            type="number"
-            step="any"
-            min="0"
-            placeholder="Quantity"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            style={{ width: 70 }}
-          />
-          <input
-            type="number"
-            step="any"
-            min="0"
-            placeholder="Price"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            style={{ width: 70 }}
-          />
-          </div>
-          <div style={{ display: 'flex', gap: 12, padding:16, flexWrap: 'wrap', alignItems: 'center' }}>
-          
-          <button
-            onClick={() => handleSubmit('buy')}
-            disabled={submitting}
-            style={{ background: '#0a5', width:130, color: '#fff', border: 'none' }}
-          >
-            {submitting ? 'Saving…' : 'Buy'}
-          </button>
-          <button
-            onClick={() => handleSubmit('sell')}
-            disabled={submitting}
-            style={{ background: '#c0392b', width:130, color: '#fff',  border: 'none' }}
-          >
-            {submitting ? 'Saving…' : 'Sell'}
-          </button>
-        </div>
-        {errorMsg && <p style={{ color: 'crimson', fontSize: 13, marginTop: 8 }}>{errorMsg}</p>}
-        <p style={{ fontSize: 12, color: '#708cbf', marginTop: 8 }}>
-          Adding the same stock again adjusts your quantity and average
-          price automatically.
-        </p>
-          </div>
-         
-      </section>
+      {!isAdminView && (
+           <section
+           style={{
+             border: '1px solid #eee',
+             borderRadius: 10,
+             padding: '10px',
+             marginBottom: 24,
+           }}
+         >
+           <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 12 }}>Add a trade</h2>
+           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+             <StockNameInput value={stockName} onChange={setStockName} />
+             <input
+               type="number"
+               step="any"
+               min="0"
+               placeholder="Quantity"
+               value={quantity}
+               onChange={(e) => setQuantity(e.target.value)}
+               style={{ width: 70 }}
+             />
+             <input
+               type="number"
+               step="any"
+               min="0"
+               placeholder="Price"
+               value={price}
+               onChange={(e) => setPrice(e.target.value)}
+               style={{ width: 70 }}
+             />
+             </div>
+             <div style={{ display: 'flex', gap: 12, padding:16, flexWrap: 'wrap', alignItems: 'center' }}>
+             
+             <button
+               onClick={() => handleSubmit('buy')}
+               disabled={submitting}
+               style={{ background: '#0a5', width:130, color: '#fff', border: 'none' }}
+             >
+               {submitting ? 'Saving…' : 'Buy'}
+             </button>
+             <button
+               onClick={() => handleSubmit('sell')}
+               disabled={submitting}
+               style={{ background: '#c0392b', width:130, color: '#fff',  border: 'none' }}
+             >
+               {submitting ? 'Saving…' : 'Sell'}
+             </button>
+           </div>
+           {errorMsg && <p style={{ color: 'crimson', fontSize: 13, marginTop: 8 }}>{errorMsg}</p>}
+           <p style={{ fontSize: 12, color: '#708cbf', marginTop: 8 }}>
+             Adding the same stock again adjusts your quantity and average
+             price automatically.
+           </p>
+             </div>
+            
+         </section>
+      )}
 
       <section style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h2 style={{ fontSize: 16, margin: 0 }}>Holdings</h2>
-          <Link href="/portfolio/history" style={{ fontSize: 13 }}>
+          <Link href={tradeHistoryHref} style={{ fontSize: 13 }}>
             View trade history →
           </Link>
         </div>
         {holdings.length === 0 ? (
-          <p style={{ color: '#666', fontSize: 14 }}>No holdings yet — add a trade above.</p>
+          <p style={{ color: '#666', fontSize: 14 }}>
+            {isAdminView ? 'No holdings.' : 'No holdings yet — add a trade above.'}
+          </p>
         ) : (
           <table className="responsive-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
             <thead>
@@ -267,7 +299,6 @@ export function PortfolioView() {
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Avg price</th>
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Total cost</th>
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Budget</th>
-                
                 <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Note</th>
                 <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Admin note</th>
               </tr>
@@ -275,18 +306,21 @@ export function PortfolioView() {
             <tbody>
               {holdings.map((h) => {
                 const matches = sheetMatches[h.stock_name] || [];
+
                 const qtyDraft = qtyDrafts[h.stock_name] ?? String(h.quantity);
                 const avgDraft = avgPriceDrafts[h.stock_name] ?? String(h.avg_price);
                 const isDirty = qtyDraft !== String(h.quantity) || avgDraft !== String(h.avg_price);
                 const qtyNum = Number(qtyDraft);
                 const avgNum = Number(avgDraft);
                 const previewTotal = Number.isFinite(qtyNum) && Number.isFinite(avgNum) ? qtyNum * avgNum : NaN;
+                const invested = h.quantity * h.avg_price;
 
                 const budgetDraft = budgetDrafts[h.stock_name] ?? (h.budget != null ? String(h.budget) : '');
                 const budgetIsDirty = budgetDraft !== (h.budget != null ? String(h.budget) : '');
-                const invested = h.quantity * h.avg_price;
                 const remaining = h.budget != null ? h.budget - invested : null;
                 const percentRemaining = remaining != null && h.budget! > 0 ? (remaining / h.budget!) * 100 : null;
+
+                const adminNoteDirty = (adminNoteDrafts[h.stock_name] ?? '') !== (h.admin_note ?? '');
 
                 return (
                   <tr className='card mobile-grid-row' key={h.stock_name}>
@@ -294,9 +328,7 @@ export function PortfolioView() {
                       {h.stock_name}
                     </td>
 
-
-                    
-                    <td data-label="Trade references" style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>
+                    <td data-label="Sheet references" style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>
                       {matches.length === 0 ? (
                         <span style={{ color: '#bbb', fontSize: 13 }}>
                           {matchesLoading ? 'Checking…' : '—'}
@@ -323,103 +355,126 @@ export function PortfolioView() {
                       )}
                     </td>
 
-
                     <td
                       data-label="Quantity"
                       style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}
                     >
-                      <input
-                        type="number"
-                        step="any"
-                        min="0"
-                        value={qtyDraft}
-                        onChange={(e) => setQtyDrafts((prev) => ({ ...prev, [h.stock_name]: e.target.value }))}
-                        style={{ width: 90, textAlign: 'right' }}
-                      />
-                    </td>
-                    <td
-                      data-label="Avg price"
-                      style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}
-                    >
-                      <div style={{ display: 'flex1', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+                      {isAdminView ? (
+                        h.quantity
+                      ) : (
                         <input
                           type="number"
                           step="any"
                           min="0"
-                          value={avgDraft}
-                          onChange={(e) =>
-                            setAvgPriceDrafts((prev) => ({ ...prev, [h.stock_name]: e.target.value }))
-                          }
+                          value={qtyDraft}
+                          onChange={(e) => setQtyDrafts((prev) => ({ ...prev, [h.stock_name]: e.target.value }))}
                           style={{ width: 90, textAlign: 'right' }}
                         />
-                        {isDirty && (
-                          <button
-                            onClick={() => saveHoldingEdit(h.stock_name)}
-                            disabled={savingHolding === h.stock_name}
-                            style={{ fontSize: 12, margin: '10px', color:'green',  padding: '4px 8px', whiteSpace: 'nowrap' }}
-                          >
-                            {savingHolding === h.stock_name ? 'Saving…' : 'Save'}
-                          </button>
-                        )}
-                      </div>
-                      {holdingErrors[h.stock_name] && (
-                        <div style={{ color: 'crimson', fontSize: 11, marginTop: 4, textAlign: 'right' }}>
-                          {holdingErrors[h.stock_name]}
-                        </div>
                       )}
                     </td>
+
+                    <td
+                      data-label="Avg price"
+                      style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}
+                    >
+                      {isAdminView ? (
+                        h.avg_price.toFixed(2)
+                      ) : (
+                        <>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              value={avgDraft}
+                              onChange={(e) =>
+                                setAvgPriceDrafts((prev) => ({ ...prev, [h.stock_name]: e.target.value }))
+                              }
+                              style={{ width: 90, textAlign: 'right' }}
+                            />
+                            {isDirty && (
+                              <button
+                                onClick={() => saveHoldingEdit(h.stock_name)}
+                                disabled={savingHolding === h.stock_name}
+                                style={{ fontSize: 12, padding: '4px 8px', whiteSpace: 'nowrap' }}
+                              >
+                                {savingHolding === h.stock_name ? 'Saving…' : 'Save'}
+                              </button>
+                            )}
+                          </div>
+                          {holdingErrors[h.stock_name] && (
+                            <div style={{ color: 'crimson', fontSize: 11, marginTop: 4, textAlign: 'right' }}>
+                              {holdingErrors[h.stock_name]}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </td>
+
                     <td
                       data-label="Total cost"
                       style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}
                     >
-                      {Number.isFinite(previewTotal) ? formatPrice(previewTotal) : '—'}
+                      {isAdminView ? formatPrice(invested) : Number.isFinite(previewTotal) ? formatPrice(previewTotal) : '—'}
 
                       {h.budget != null && remaining != null && (
                         <span
                           style={{
                             fontSize: 12,
-                            margin: 8,
-                            textAlign: 'center',
-                            color: remaining < 0 ? '#e91e09' : percentRemaining !== null && percentRemaining <= 20 ? '#b8860b' : '#0a5',
+                            padding: 4,
+                            textAlign: 'right',
+                            color:
+                              remaining < 0
+                                ? '#c0392b'
+                                : percentRemaining !== null && percentRemaining <= 20
+                                ? '#b8860b'
+                                : '#0a5',
                           }}
                         >
                           {remaining < 0
-                            ? `Over by ${formatPrice(Math.abs(remaining))}`
-                            : `${formatPrice(remaining)}${
+                            ? `Over by ${formatCompact(Math.abs(remaining))}`
+                            : `${formatCompact(remaining)}${
                                 percentRemaining !== null ? ` (${Math.round(percentRemaining)}%)` : ''
                               } left`}
                         </span>
                       )}
-
                     </td>
 
                     <td
                       data-label="Budget"
                       style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}
                     >
-                      <div style={{ display: 'flex1', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
-                        <input
-                          type="number"
-                          step="any"
-                          min="0"
-                          placeholder="Set budget"
-                          value={budgetDraft}
-                          onChange={(e) =>
-                            setBudgetDrafts((prev) => ({ ...prev, [h.stock_name]: e.target.value }))
-                          }
-                          style={{ width: 100, textAlign: 'right' }}
-                        />
-                        {budgetIsDirty && (
-                          <button
-                            onClick={() => saveBudget(h.stock_name)}
-                            disabled={savingBudget === h.stock_name}
-                            style={{ fontSize: 12, padding: '4px 8px', whiteSpace: 'nowrap' }}
-                          >
-                            {savingBudget === h.stock_name ? 'Saving…' : 'Save'}
-                          </button>
-                        )}
-                      </div>
-                      {budgetErrors[h.stock_name] && (
+                      {isAdminView ? (
+                        h.budget == null ? (
+                          <span style={{ color: '#bbb' }}>—</span>
+                        ) : (
+                          <div>{formatPrice(h.budget)}</div>
+                        )
+                      ) : (
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            placeholder="Set budget"
+                            value={budgetDraft}
+                            onChange={(e) =>
+                              setBudgetDrafts((prev) => ({ ...prev, [h.stock_name]: e.target.value }))
+                            }
+                            style={{ width: 100, textAlign: 'right' }}
+                          />
+                          {budgetIsDirty && (
+                            <button
+                              onClick={() => saveBudget(h.stock_name)}
+                              disabled={savingBudget === h.stock_name}
+                              style={{ fontSize: 12, padding: '4px 8px', whiteSpace: 'nowrap' }}
+                            >
+                              {savingBudget === h.stock_name ? 'Saving…' : 'Save'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {!isAdminView && budgetErrors[h.stock_name] && (
                         <div style={{ color: 'crimson', fontSize: 11, marginTop: 4, textAlign: 'right' }}>
                           {budgetErrors[h.stock_name]}
                         </div>
@@ -427,39 +482,77 @@ export function PortfolioView() {
                       
                     </td>
 
+                
+
                     <td data-label="Note" style={{ padding: 8, borderBottom: '1px solid #f2f2f2', minWidth: 200 }}>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-                        <textarea
-                          value={noteDrafts[h.stock_name] ?? ''}
-                          onChange={(e) =>
-                            setNoteDrafts((prev) => ({ ...prev, [h.stock_name]: e.target.value }))
-                          }
-                          placeholder="Add a note…"
-                          rows={2}
-                          style={{
-                            flex: 1,
-                            fontSize: 13,
-                            fontFamily: 'inherit',
-                            padding: '6px 8px',
-                            resize: 'vertical',
-                          }}
-                        />
-                        {(noteDrafts[h.stock_name] ?? '') !== (h.note ?? '') && (
-                          <button
-                            onClick={() => saveNote(h.stock_name)}
-                            disabled={savingNote === h.stock_name}
-                            style={{ fontSize: 12, padding: '4px 8px', whiteSpace: 'nowrap' }}
-                          >
-                            {savingNote === h.stock_name ? 'Saving…' : 'Save'}
-                          </button>
-                        )}
-                      </div>
+                      {isAdminView ? (
+                        h.note ? (
+                          <div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{h.note}</div>
+                        ) : (
+                          <span style={{ color: '#bbb', fontSize: 13 }}>—</span>
+                        )
+                      ) : (
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                          <textarea
+                            value={noteDrafts[h.stock_name] ?? ''}
+                            onChange={(e) =>
+                              setNoteDrafts((prev) => ({ ...prev, [h.stock_name]: e.target.value }))
+                            }
+                            placeholder="Add a note…"
+                            rows={2}
+                            style={{
+                              flex: 1,
+                              fontSize: 13,
+                              fontFamily: 'inherit',
+                              padding: '6px 8px',
+                              resize: 'vertical',
+                            }}
+                          />
+                          {(noteDrafts[h.stock_name] ?? '') !== (h.note ?? '') && (
+                            <button
+                              onClick={() => saveNote(h.stock_name)}
+                              disabled={savingNote === h.stock_name}
+                              style={{ fontSize: 12, padding: '4px 8px', whiteSpace: 'nowrap' }}
+                            >
+                              {savingNote === h.stock_name ? 'Saving…' : 'Save'}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
+
                     <td
                       data-label="Admin note"
-                      style={{ padding: 8, borderBottom: '1px solid #f2f2f2', maxWidth: 200 }}
+                      style={{ padding: 8, borderBottom: '1px solid #f2f2f2', maxWidth: 200, minWidth: isAdminView ? 200 : undefined }}
                     >
-                      {h.admin_note ? (
+                      {isAdminView ? (
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                          <textarea
+                            value={adminNoteDrafts[h.stock_name] ?? ''}
+                            onChange={(e) =>
+                              setAdminNoteDrafts((prev) => ({ ...prev, [h.stock_name]: e.target.value }))
+                            }
+                            placeholder="Add an admin note…"
+                            rows={2}
+                            style={{
+                              flex: 1,
+                              fontSize: 13,
+                              fontFamily: 'inherit',
+                              padding: '6px 8px',
+                              resize: 'vertical',
+                            }}
+                          />
+                          {adminNoteDirty && (
+                            <button
+                              onClick={() => saveAdminNote(h.stock_name)}
+                              disabled={savingAdminNote === h.stock_name}
+                              style={{ fontSize: 12, padding: '4px 8px', whiteSpace: 'nowrap' }}
+                            >
+                              {savingAdminNote === h.stock_name ? 'Saving…' : 'Save'}
+                            </button>
+                          )}
+                        </div>
+                      ) : h.admin_note ? (
                         <div style={{ fontSize: 13, color: '#555', whiteSpace: 'pre-wrap' }}>{h.admin_note}</div>
                       ) : (
                         <span style={{ color: '#bbb', fontSize: 13 }}>—</span>
