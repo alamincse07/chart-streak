@@ -29,8 +29,11 @@ export default async function AdminUserTradesPage({ params }: { params: { userId
 
   return (
     <main style={{ padding: '1rem' }}>
-      <Link href="/admin/portfolios" style={{ fontSize: 13, display: 'inline-block', marginBottom: 12 }}>
-        ← Back to portfolios
+      <Link
+        href={`/admin/portfolios/${params.userId}`}
+        style={{ fontSize: 13, display: 'inline-block', marginBottom: 12 }}
+      >
+        ← Back to {user.name}&apos;s portfolio
       </Link>
       <h1 style={{ fontSize: 20, marginBottom: 4 }}>Trade history</h1>
       <p style={{ color: '#666', fontSize: 14, marginBottom: 20 }}>{user.name || user.email}</p>

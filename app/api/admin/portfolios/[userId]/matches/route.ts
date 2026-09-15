@@ -1,24 +1,16 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { requireAdmin } from '@/lib/requireAdmin';
 import { supabaseAdmin } from '@/lib/supabase';
 import { findSheetMatchesForStocks } from '@/lib/portfolioMatches';
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  }
-  if ((session.user as any).status !== 'approved') {
-    return NextResponse.json({ error: 'Account not approved yet' }, { status: 403 });
-  }
-
-  const userId = (session.user as any).id;
+export async function GET(_req: Request, { params }: { params: { userId: string } }) {
+  const { error } = await requireAdmin();
+  if (error) return error;
 
   const { data: holdings, error: holdingsErr } = await supabaseAdmin
     .from('portfolio_holdings')
     .select('stock_name')
-    .eq('user_id', userId)
+    .eq('user_id', params.userId)
     .gt('quantity', 0);
 
   if (holdingsErr) return NextResponse.json({ error: holdingsErr.message }, { status: 500 });

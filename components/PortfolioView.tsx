@@ -262,12 +262,12 @@ export function PortfolioView() {
             <thead>
               <tr>
                 <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Stock</th>
+                <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Sheet references</th>
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Quantity</th>
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Avg price</th>
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Total cost</th>
                 <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #ddd' }}>Budget</th>
                 
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Sheet references</th>
                 <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Note</th>
                 <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #ddd' }}>Admin note</th>
               </tr>
@@ -289,10 +289,41 @@ export function PortfolioView() {
                 const percentRemaining = remaining != null && h.budget! > 0 ? (remaining / h.budget!) * 100 : null;
 
                 return (
-                  <tr className='card' key={h.stock_name}>
+                  <tr className='card mobile-grid-row' key={h.stock_name}>
                     <td data-label="Stock" style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>
                       {h.stock_name}
                     </td>
+
+
+                    
+                    <td data-label="Trade references" style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>
+                      {matches.length === 0 ? (
+                        <span style={{ color: '#bbb', fontSize: 13 }}>
+                          {matchesLoading ? 'Checking…' : '—'}
+                        </span>
+                      ) : (
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {matches.map((m) => (
+                            <button
+                              key={m.sheetId}
+                              onClick={() => setActiveMatch(m)}
+                              style={{
+                                fontSize: 12,
+                                padding: '3px 8px',
+                                borderRadius: 999,
+                                border: '1px solid #cbd5e1',
+                                background: '#f7f9fc',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {m.sheetName}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+
+
                     <td
                       data-label="Quantity"
                       style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}
@@ -342,6 +373,24 @@ export function PortfolioView() {
                       style={{ padding: 8, borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}
                     >
                       {Number.isFinite(previewTotal) ? formatPrice(previewTotal) : '—'}
+
+                      {h.budget != null && remaining != null && (
+                        <span
+                          style={{
+                            fontSize: 12,
+                            margin: 8,
+                            textAlign: 'center',
+                            color: remaining < 0 ? '#e91e09' : percentRemaining !== null && percentRemaining <= 20 ? '#b8860b' : '#0a5',
+                          }}
+                        >
+                          {remaining < 0
+                            ? `Over by ${formatPrice(Math.abs(remaining))}`
+                            : `${formatPrice(remaining)}${
+                                percentRemaining !== null ? ` (${Math.round(percentRemaining)}%)` : ''
+                              } left`}
+                        </span>
+                      )}
+
                     </td>
 
                     <td
@@ -375,50 +424,9 @@ export function PortfolioView() {
                           {budgetErrors[h.stock_name]}
                         </div>
                       )}
-                      {h.budget != null && remaining != null && (
-                        <div
-                          style={{
-                            fontSize: 12,
-                            marginTop: 4,
-                            textAlign: 'right',
-                            color: remaining < 0 ? '#e91e09' : percentRemaining !== null && percentRemaining <= 20 ? '#b8860b' : '#0a5',
-                          }}
-                        >
-                          {remaining < 0
-                            ? `Over by ${formatPrice(Math.abs(remaining))}`
-                            : `${formatPrice(remaining)}${
-                                percentRemaining !== null ? ` (${Math.round(percentRemaining)}%)` : ''
-                              } left`}
-                        </div>
-                      )}
+                      
                     </td>
 
-                    <td data-label="Trade references" style={{ padding: 8, borderBottom: '1px solid #f2f2f2' }}>
-                      {matches.length === 0 ? (
-                        <span style={{ color: '#bbb', fontSize: 13 }}>
-                          {matchesLoading ? 'Checking…' : '—'}
-                        </span>
-                      ) : (
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {matches.map((m) => (
-                            <button
-                              key={m.sheetId}
-                              onClick={() => setActiveMatch(m)}
-                              style={{
-                                fontSize: 12,
-                                padding: '3px 8px',
-                                borderRadius: 999,
-                                border: '1px solid #cbd5e1',
-                                background: '#f7f9fc',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              {m.sheetName}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </td>
                     <td data-label="Note" style={{ padding: 8, borderBottom: '1px solid #f2f2f2', minWidth: 200 }}>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
                         <textarea
